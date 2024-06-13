@@ -1,4 +1,4 @@
-﻿# **Demo For PCMAgent**
+# **Demo For PCMAgent**
 [RUS] Демонстрация использования функций программы: "PC Monitoring Agent" (PCMAgent.exe)  
 [ENG] Demonstration of the use of the program's functions:"PC Monitoring Agent" (PCMAgent.exe)  
 "PC Monitoring Agent": https://github.com/superbot-coder/PCMonitoringAgent  

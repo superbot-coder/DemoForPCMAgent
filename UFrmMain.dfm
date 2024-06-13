@@ -23,9 +23,9 @@ object FrmMain: TFrmMain
   object LblPostFile: TLabel
     Left = 143
     Top = 235
-    Width = 57
+    Width = 56
     Height = 15
-    Caption = 'LblPostFile'
+    Caption = 'UpdateFile'
   end
   object Label1: TLabel
     Left = 279
@@ -60,12 +60,13 @@ object FrmMain: TFrmMain
   object mm: TMemo
     Left = 8
     Top = 272
-    Width = 724
+    Width = 720
     Height = 462
     Anchors = [akLeft, akTop, akRight, akBottom]
     ScrollBars = ssVertical
     TabOrder = 1
-    ExplicitHeight = 356
+    ExplicitWidth = 716
+    ExplicitHeight = 461
   end
   object BtnOpenFile: TButton
     Left = 8
@@ -148,7 +149,7 @@ object FrmMain: TFrmMain
     EditLabel.Height = 15
     EditLabel.Caption = 'Header Parametr:'
     TabOrder = 8
-    Text = 'shell_execute'
+    Text = 'shellexecute'
   end
   object LblEdParamValue: TLabeledEdit
     Left = 159

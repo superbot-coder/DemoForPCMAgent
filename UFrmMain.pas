@@ -196,8 +196,6 @@ begin
   ConfigFile   := TPath.Combine(TPath.GetLibraryPath, 'Config.json');
   HostListFile := TPath.Combine(TPath.GetLibraryPath, 'HostList.lst');
 
-  FConfig := TConfig.Create;
-
   if Tfile.Exists(HostListFile) then
     CmBoxHostName.Items.LoadFromFile(HostListFile);
 
@@ -206,7 +204,9 @@ begin
     FConfig := TJSON.JsonToObject<TConfig>(TFile.ReadAllText(ConfigFile));
     lblEdPrivatKey.Text := Config.PrivatKey;
     LblEdUpdateKey.Text := Config.UpdateKey;
-  end;
+  end
+  else
+    FConfig := TConfig.Create;
 
 end;
 

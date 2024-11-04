@@ -6,7 +6,9 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, RESTRequest4D, Vcl.Mask,
   Vcl.ExtCtrls, LbCipher, LbClass, System.JSON, Rest.Json, Vcl.Samples.Spin,
-  System.NetEncoding, System.IOUtils;
+  System.NetEncoding, System.IOUtils, REST.Types, Vcl.ComCtrls, Vcl.Themes,
+  System.ImageList, Vcl.ImgList, Vcl.Imaging.pngimage, Winapi.ShellAPI;
+
 
 type
 
@@ -18,32 +20,46 @@ type
   Private
     FPrivatKey: string;
     FUpdateKey: string;
+    FStyle: string;
   public
     property PrivatKey: string read FPrivatKey write FPrivatKey;
     property UpdateKey: string read FUpdateKey write FUpdateKey;
+    property Style: string read FStyle write FStyle;
   end;
 
   TFrmMain = class(TForm)
-    BtnUpdate: TButton;
     OpenDialog: TOpenDialog;
     mm: TMemo;
-    LblPostFile: TLabel;
-    BtnOpenFile: TButton;
-    LblEdUpdateKey: TLabeledEdit;
+    LbRijndael: TLbRijndael;
+    PageControl: TPageControl;
+    TabSheetRequestPCMAgent: TTabSheet;
+    TabSheetKeys: TTabSheet;
+    TabSheetUpdate: TTabSheet;
+    CmBoxParamValue: TComboBox;
+    ChBoxPrivatKey: TCheckBox;
+    ChBoxHeaderEnabled: TCheckBox;
+    LblEdParam: TLabeledEdit;
     BtnGet: TButton;
     CmBoxURLPath: TComboBox;
     Label1: TLabel;
-    LbRijndael: TLbRijndael;
-    lblEdPrivatKey: TLabeledEdit;
     SpEdPort: TSpinEdit;
     LblPort: TLabel;
-    LblEdParam: TLabeledEdit;
-    LblEdParamValue: TLabeledEdit;
-    ChBoxHeaderEnabled: TCheckBox;
-    ChBoxPrivatKey: TCheckBox;
     CmBoxHostName: TComboBox;
     LblHostName: TLabel;
+    BtnUpdate: TButton;
+    BtnOpenFile: TButton;
     BtnSaveAllKey: TButton;
+    LblEdUpdateKey: TLabeledEdit;
+    lblEdPrivatKey: TLabeledEdit;
+    LblEditUpdateFile: TLabeledEdit;
+    TabSheetAbout: TTabSheet;
+    CmBoxExSelectStyle: TComboBoxEx;
+    ImageList: TImageList;
+    LblSelecterStyle: TLabel;
+    Image1: TImage;
+    LblTelegramChannel: TLabel;
+    Label2: TLabel;
+    LblGitHubSource: TLabel;
     procedure BtnUpdateClick(Sender: TObject);
     procedure BtnOpenFileClick(Sender: TObject);
     procedure BtnGetClick(Sender: TObject);
@@ -52,13 +68,23 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure BtnSaveAllKeyClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure CmBoxExSelectStyleSelect(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
+    procedure LblMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
+    procedure LblMouseLeave(Sender: TObject);
+    procedure LblClick(Sender: TObject);
   private
     { Private declarations }
     FConfig: TConfig;
     function GetAccessKey(const Host: string): string;
+
   public
     { Public declarations }
     property Config: TConfig read FConfig write FConfig;
+    procedure SaveConfig;
+    procedure LoadConfig;
+    procedure SaveImitasion;
   end;
 
 var
@@ -66,7 +92,9 @@ var
 
   UpdateFile: string;
   AccessStr: string;
+  CurrentPath: string;
   HostListFile: string;
+  ParamValuesFiles: string;
   ConfigFile: string;
 
 
@@ -97,7 +125,7 @@ end;
 procedure TFrmMain.BtnOpenFileClick(Sender: TObject);
 begin
   if Not OpenDialog.Execute then Exit;
-  LblPostFile.Caption := OpenDialog.FileName;
+  LblEditUpdateFile.Text := OpenDialog.FileName;
   UpdateFile := OpenDialog.FileName;
 end;
 
@@ -105,8 +133,8 @@ procedure TFrmMain.BtnSaveAllKeyClick(Sender: TObject);
 begin
   Config.PrivatKey := lblEdPrivatKey.Text;
   Config.UpdateKey := LblEdUpdateKey.Text;
-  TFile.WriteAllText(ConfigFile,
-         TJson.ObjectToJsonString(Config, [joIndentCasePreserve]));
+  SaveConfig;
+  ShowMessage('Saved ok');
 end;
 
 procedure TFrmMain.BtnUpdateClick(Sender: TObject);
@@ -155,6 +183,13 @@ begin
   end;
 end;
 
+procedure TFrmMain.CmBoxExSelectStyleSelect(Sender: TObject);
+begin
+  TStyleManager.SetStyle(CmBoxExSelectStyle.Text);
+  Config.Style := CmBoxExSelectStyle.Text;
+  SaveConfig;
+end;
+
 function TFrmMain.CryptStr(StrValue, KeyStr: String): string;
 var
   Key: TKey128;
@@ -186,27 +221,42 @@ begin
   Result := LbRijndael.EncryptString(StrValue);
 end;
 
+procedure TFrmMain.FormActivate(Sender: TObject);
+begin
+  TStyleManager.SetStyle(Config.Style);
+  if CmBoxExSelectStyle.Items.IndexOf(Config.Style) <> -1 then
+  begin
+    CmBoxExSelectStyle.Text := Config.Style;
+  end;
+end;
+
 procedure TFrmMain.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   CmBoxHostName.Items.SaveToFile(HostListFile);
+  CmBoxParamValue.Items.SaveToFile(ParamValuesFiles);
 end;
 
 procedure TFrmMain.FormCreate(Sender: TObject);
 begin
-  ConfigFile   := TPath.Combine(TPath.GetLibraryPath, 'Config.json');
-  HostListFile := TPath.Combine(TPath.GetLibraryPath, 'HostList.lst');
+  CurrentPath  := TPath.GetLibraryPath;
+  ConfigFile   := TPath.Combine(CurrentPath, 'Config.json');
+  HostListFile := TPath.Combine(CurrentPath, 'HostList.txt');
+  ParamValuesFiles := TPath.Combine(CurrentPath, 'ParamValues.txt');
 
   if Tfile.Exists(HostListFile) then
     CmBoxHostName.Items.LoadFromFile(HostListFile);
 
-  if TFile.Exists(ConfigFile) then
-  begin
-    FConfig := TJSON.JsonToObject<TConfig>(TFile.ReadAllText(ConfigFile));
-    lblEdPrivatKey.Text := Config.PrivatKey;
-    LblEdUpdateKey.Text := Config.UpdateKey;
-  end
-  else
-    FConfig := TConfig.Create;
+  if Tfile.Exists(ParamValuesFiles) then
+    CmBoxParamValue.Items.LoadFromFile(ParamValuesFiles);
+
+  LoadConfig;
+
+  lblEdPrivatKey.Text := Config.PrivatKey;
+  LblEdUpdateKey.Text := Config.UpdateKey;
+
+  // Set Styles
+  for var StyleName in TStyleManager.StyleNames do
+    CmBoxExSelectStyle.ItemsEx.AddItem(StyleName,0 , 0, 0, 0, Nil);
 
 end;
 
@@ -229,7 +279,7 @@ begin
           and IsHexStr(jsonAccessKey.Values['access_key'].Value) then
           Result := jsonAccessKey.ToJSON
         else
-        GetKeyError := true;
+          GetKeyError := true;
     finally
       jsonAccessKey.Free;
     end;
@@ -238,6 +288,66 @@ begin
   if GetKeyError then
     mm.Lines.Add('Error:  can not get access_key');
 
+end;
+
+procedure TFrmMain.LblMouseMove(Sender: TObject; Shift: TShiftState;
+  X, Y: Integer);
+begin
+  (Sender as TLabel).Font.Size := 12;
+  (Sender as TLabel).Cursor := crHandPoint;
+  (Sender as TLabel).Font.Color := clHighlight;
+end;
+
+procedure TFrmMain.LblClick(Sender: TObject);
+begin
+  ShellExecute(Handle, PChar('Open'),
+               PChar((sender as TLabel).Caption),
+               Nil, Nil, SW_SHOWNORMAL);
+end;
+
+procedure TFrmMain.LblMouseLeave(Sender: TObject);
+begin
+  (Sender as TLabel).Font.Size := 10;
+  (Sender as TLabel).Cursor := crDefault;
+  (Sender as TLabel).Font.Color := clWindowText;
+end;
+
+procedure TFrmMain.LoadConfig;
+begin
+  try
+    if Not TFile.Exists(ConfigFile) then
+    begin
+      FConfig := TConfig.Create;
+      Exit;
+    end;
+    FConfig := TJson.JsonToObject<TConfig>(
+                 TFile.ReadAllText(ConfigFile, TEncoding.UTF8),
+                 [joIndentCasePreserve]);
+  except
+    on E: Exception do
+    begin
+      ShowMessage('Error: ' + E.Message + ' metod: TFrmMain.LoadConfig');
+    end;
+  end;
+end;
+
+procedure TFrmMain.SaveConfig;
+begin
+  var JSOConfig := TJson.ObjectToJsonObject(Config, [joIndentCasePreserve]);
+  try
+    TFile.WriteAllText(ConfigFile, Tjson.Format(JSOConfig), TEncoding.UTF8);
+  finally
+    JSOConfig.Free;
+  end;
+end;
+
+procedure TFrmMain.SaveImitasion;
+begin
+ // try
+    raise Exception.Create('SaveImitasion');
+ // Except
+    //
+ // end;
 end;
 
 procedure TFrmMain.BtnGetClick(Sender: TObject);
@@ -265,7 +375,7 @@ begin
 
   if ChBoxHeaderEnabled.Checked then
   begin
-    ParamValue := TNetEncoding.Base64.Encode(LblEdParamValue.Text);
+    ParamValue := TNetEncoding.Base64.Encode(CmBoxParamValue.Text);
     mm.Lines.Add('HeaderValue base64 = ' + ParamValue);
     Resp := TRequest.New.BaseURL(Host + CmBoxURLPath.Text)
                   .AddHeader(LblEdParam.Text, ParamValue, [poDoNotEncode, poTransient])
@@ -274,9 +384,20 @@ begin
   else
     Resp := TRequest.New.BaseURL(Host + CmBoxURLPath.Text).Token(Secret).Get;
 
-  if CmBoxHostName.Items.IndexOf(CmBoxHostName.Text) = -1 then
-    CmBoxHostName.Items.Add(CmBoxHostName.Text);
   mm.Lines.Add(Resp.Content);
+
+  if (CmBoxHostName.Items.IndexOf(CmBoxHostName.Text) = -1)
+    and (CmBoxHostName.Text <> '')
+  then
+    CmBoxHostName.Items.Add(CmBoxHostName.Text);
+
+  if (Resp.StatusCode = 200) and (Resp.ContentType = ctAPPLICATION_JSON) then
+  begin
+    if (CmBoxParamValue.Items.IndexOf(CmBoxParamValue.Text) = -1)
+      and (CmBoxParamValue.Text <> '')
+    then
+      CmBoxParamValue.Items.Add(CmBoxParamValue.Text);
+  end;
 
 end;
 
